@@ -243,15 +243,17 @@ function rateOf(p){
   var o=aj().rate&&aj().rate[p.id];if(o!=null)return {v:+o,src:'tuyo'};
   var h=histRate(p.id);if(h!=null)return {v:h,src:'calculado'};return {v:p.rate0,src:'estimado'}}
 function pend(p){var t=0;Object.keys(mem.pedidos).forEach(function(k){var o=mem.pedidos[k];if(o&&!o.recibido&&o.items&&o.items[p.id])t+=+o.items[p.id].L||0;if(p.id==='zotal'&&o&&!o.recibido&&o.items&&o.items.zotaldep)t+=+o.items.zotaldep.L||0});return t}
+function lastCnt(id){var s=series();for(var i=s.ds.length-1;i>=0;i--){if(typeof s.dates[s.ds[i]][id]==='number')return s.ds[i]}return '0000-00-00'}
+function recSince(p){return D[p.id]&&D[p.id].t?0:entr(p.id,lastCnt(p.id),'9999-12-31')}
 function calc(p){
-  var stock=tot(p),pe=pend(p),eff=stock+pe,mn=minOf(p),r=rateOf(p),rate=r.v;
+  var rc=recSince(p),stock=tot(p)+rc,pe=pend(p),eff=stock+pe,mn=minOf(p),r=rateOf(p),rate=r.v;
   var hz=p.look||(PAR.ciclo+PAR.entrega),dias=rate>0?(eff-mn)/rate:Infinity,qn=0;
   if(p.habit){if(eff-rate*hz<=mn)qn=p.habit}
   else if(mn>0){var need=mn+rate*hz-eff;if(need>0){qn=Math.ceil(need/p.ou.l);var pm=pminOf(p);if(pm&&qn<pm)qn=pm}}
   var sug=qn;
   if(OV[p.id]!==undefined)qn=Math.max(0,+OV[p.id]||0);
   var st=qn>0?'now':((mn===0&&rate>0&&dias<hz&&stock>0)?'check':'wait');
-  return {p:p,stock:stock,pe:pe,mn:mn,rate:rate,src:r.src,hz:hz,dias:dias,sug:sug,q:qn,L:qn*p.ou.l,st:st}}
+  return {p:p,stock:stock,rc:rc,pe:pe,mn:mn,rate:rate,src:r.src,hz:hz,dias:dias,sug:sug,q:qn,L:qn*p.ou.l,st:st}}
 function qtxt(c){if(!c.q)return '—';var p=c.p,t=fmt(c.q)+' '+p.ou.n;if(p.ou.n!=='L'&&p.ou.n!=='botes')t+=' ('+fmt(c.L)+' L)';return t}
 var main=document.getElementById('main'),title=document.getElementById('title'),subtitle=document.getElementById('subtitle');
 function toast(t){var e=document.querySelector('.toast');if(e)e.remove();e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);clearTimeout(toastT);toastT=setTimeout(function(){e.remove()},2600)}
@@ -370,7 +372,7 @@ function viewCist(){
 /* ---------- PEDIDO ---------- */
 function itemHTML(c){var p=c.p,sin=c.mn===0?' · sin mínimo':'',d=isFinite(c.dias)?fmt(Math.max(0,c.dias))+' días':'—';
   return '<details class="item '+c.st+'" data-id="'+p.id+'"><summary><span class="name">'+esc(p.name)+'</span><span class="qty">'+(c.st==='now'?qtxt(c):d)+'</span>'+
-   '<span class="meta num">Hay '+fmt(c.stock)+' '+unit(p)+(uTxt(p,c.stock)?' = <b>'+uTxt(p,c.stock)+'</b>':'')+(c.mn>0&&uTxt(p,c.mn)?' · mín. '+uTxt(p,c.mn):'')+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+' · gasta '+fmt(c.rate)+'/día ('+c.src+')'+sin+(c.st==='now'?' · aguanta '+d:'')+'</span></summary>'+
+   '<span class="meta num">Hay '+fmt(c.stock)+' '+unit(p)+(uTxt(p,c.stock)?' = <b>'+uTxt(p,c.stock)+'</b>':'')+(c.mn>0&&uTxt(p,c.mn)?' · mín. '+uTxt(p,c.mn):'')+(c.rc?' (incluye +'+fmt(c.rc)+' recibido)':'')+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+' · gasta '+fmt(c.rate)+'/día ('+c.src+')'+sin+(c.st==='now'?' · aguanta '+d:'')+'</span></summary>'+
    (c.st==='now'?'<div class="more" style="grid-template-columns:1fr auto;align-items:end"><div><label for="oq-'+p.id+'">Cantidad a pedir ('+p.ou.n+')</label><input type="number" id="oq-'+p.id+'" data-a="oq" min="0" step="1" value="'+c.q+'"></div><button class="btn" data-rm="'+p.id+'">Quitar del pedido</button></div>':'')+'<div class="more"><div><label for="mn-'+p.id+'">Mínimo ('+unit(p)+')</label><input type="number" id="mn-'+p.id+'" data-a="min" value="'+c.mn+'"></div>'+
    '<div><label for="rt-'+p.id+'">Consumo/día</label><input type="number" id="rt-'+p.id+'" data-a="rate" step="0.1" value="'+Math.round(c.rate*10)/10+'"></div>'+
    '<div><label for="pm-'+p.id+'">Pedido mín.</label><input type="number" id="pm-'+p.id+'" data-a="pmin" value="'+pminOf(p)+'"></div></div></details>'}
