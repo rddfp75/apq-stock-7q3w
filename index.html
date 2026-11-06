@@ -262,7 +262,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt();
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-b';
   var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
