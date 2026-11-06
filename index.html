@@ -218,6 +218,7 @@ var OV=ld('apq2-ov',{}),ZD=ld('apq2-zd',0);
 var cper='dia',db=null,dbState='conectando',cache=null,tab='count',idx=-1,q='',toastT=null;
 function fmt(n){return (Math.round(n*10)/10).toLocaleString('es-ES')}
 function uTxt(p,L){if(!p.ou||p.ou.n==='L'||p.ou.n==='botes'||p.id==='deogen')return '';var n=Math.floor(L/p.ou.l+1e-9),r=Math.round((L-n*p.ou.l)*10)/10;if(n<1)return '';return n+' '+p.ou.n+(r>0?' + '+fmt(r)+' L':'')}
+function detTxt(p){var st=D[p.id],o=[];if(!st)return '';p.fields.forEach(function(f){var v=+st.f[f.k]||0;if(v<=0)return;if(f.k==='lit')o.push(fmt(v)+' L sueltos');else{var nm=String(f.label).replace(/\s*\(.*?\)/g,'').trim().toLowerCase();if(p.id==='zotal'&&f.k==='bidon')nm=v===1?'bidón':'bidones';else if(f.k==='grg')nm='GRG';else if(v===1&&/s$/.test(nm))nm=nm.slice(0,-1);o.push(fmt(v)+' '+nm)}});var g=(st.g||[]).filter(function(v){return +v>0}).length;if(g)o.push(g+' GRG');if(!g&&!p.fields.some(function(f){return f.k!=='lit'&&(+st.f[f.k]||0)>0}))return '';return o.join(' + ')}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function dmy(s){var a=s.split('-');return a[2]+'/'+a[1]+'/'+a[0]}
@@ -244,11 +245,13 @@ function rateOf(p){
   var h=histRate(p.id);if(h!=null)return {v:h,src:'calculado'};return {v:p.rate0,src:'estimado'}}
 function pend(p){var t=0;Object.keys(mem.pedidos).forEach(function(k){var o=mem.pedidos[k];if(o&&!o.recibido&&o.items&&o.items[p.id])t+=+o.items[p.id].L||0;if(p.id==='zotal'&&o&&!o.recibido&&o.items&&o.items.zotaldep)t+=+o.items.zotaldep.L||0});return t}
 function addStock(items){var out=[];Object.keys(items).forEach(function(i){var it=items[i],L=+it.Lr||0,p=i==='zotaldep'?BY.zotal:BY[i];if(!p||!L||!D[p.id])return;var f=i==='zotaldep'?p.fields.filter(function(x){return x.k==='bidon'})[0]:(p.fields.filter(function(x){return x.l===p.ou.l})[0]||p.fields.filter(function(x){return x.l===1})[0]);if(!f)return;var add=Math.round(L/f.l*100)/100;D[p.id].f[f.k]=Math.round(((+D[p.id].f[f.k]||0)+add)*100)/100;out.push(p.name)});saveDraft();return out}
+var SUGERIR=false;
 function calc(p){
   var stock=tot(p),pe=pend(p),eff=stock+pe,mn=minOf(p),r=rateOf(p),rate=r.v;
   var hz=p.look||(PAR.ciclo+PAR.entrega),dias=rate>0?(eff-mn)/rate:Infinity,qn=0;
   if(p.habit){if(eff-rate*hz<=mn)qn=p.habit}
   else if(mn>0){var need=mn+rate*hz-eff;if(need>0){qn=Math.ceil(need/p.ou.l);var pm=pminOf(p);if(pm&&qn<pm)qn=pm}}
+  if(!SUGERIR&&!p.habit)qn=0;
   var sug=qn;
   if(OV[p.id]!==undefined)qn=Math.max(0,+OV[p.id]||0);
   var st=qn>0?'now':((mn===0&&rate>0&&dias<hz&&stock>0)?'check':'wait');
@@ -262,12 +265,12 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-b';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-e';
   var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
   P.forEach(function(p,i){if(q&&p.name.toLowerCase().indexOf(q.toLowerCase())<0)return;
-    h+='<button class="row" data-open="'+i+'"><span class="name">'+esc(p.name)+'</span>'+chip(p)+'<span class="tot num">'+fmt(tot(p))+' <small>'+unit(p)+'</small>'+(uTxt(p,tot(p))?'<br><small>= '+uTxt(p,tot(p))+'</small>':'')+'</span></button>'});
+    h+='<button class="row" data-open="'+i+'"><span class="name">'+esc(p.name)+'</span>'+chip(p)+'<span class="tot num">'+fmt(tot(p))+' <small>'+unit(p)+'</small>'+(detTxt(p)?'<br><small>'+detTxt(p)+'</small>':'')+'</span></button>'});
   main.innerHTML=h+'</div>';
   var qi=document.getElementById('q');qi.addEventListener('input',function(){q=qi.value;var pos=qi.selectionStart;viewList();var x=document.getElementById('q');x.focus();x.setSelectionRange(pos,pos)})}
 function fieldHTML(p,f){var v=D[p.id].f[f.k];v=v==null?'':v;var sub=f.l===1?'':'× '+fmt(f.l)+' L';
@@ -301,7 +304,9 @@ function lfe(){return LD.fe||today()}
 function lecSeries(){var d={};Object.keys(LEC).forEach(function(k){d[k]=LEC[k]});Object.keys(mem.lecturas).forEach(function(k){var x=mem.lecturas[k];if(x&&x.v)d[k]=x.v});return Object.keys(d).sort().map(function(k){return [k,d[k]]})}
 function lprev(k,fe){var s=lecSeries();for(var i=s.length-1;i>=0;i--){if(s[i][0]<fe&&typeof s[i][1][k]==='number')return [s[i][0],s[i][1][k]]}return null}
 function lavg(k,fe){var s=lecSeries().filter(function(x){return x[0]<fe&&typeof x[1][k]==='number'}).slice(-15),t=0,n=0;for(var i=1;i<s.length;i++){var dd=ldays(s[i-1][0],s[i][0]);if(dd>0&&dd<=10){var c=s[i][1][k]-s[i-1][1][k];if(c>=0){t+=c/dd;n++}}}return n?t/n:0}
-function linfo(k){var v=LD.v[k];if(v==null||isNaN(v))return null;var fe=lfe(),pr=lprev(k,fe);if(!pr)return null;var d=Math.max(1,ldays(pr[0],fe)),c=v-pr[1],pd=c/d,a=lavg(k,fe);return {pr:pr,v:v,c:c,d:d,pd:pd,a:a,bad:c>=0&&pd>1.5*a&&pd>30}}
+var LREF={0:[190,220],1:[40,60],2:[40,60]};
+function lbad(k,pd,a){if(k===3)return false;if(LREF[k])return pd>LREF[k][1];return pd>1.5*a&&pd>30}
+function linfo(k){var v=LD.v[k];if(v==null||isNaN(v))return null;var fe=lfe(),pr=lprev(k,fe);if(!pr)return null;var d=Math.max(1,ldays(pr[0],fe)),c=v-pr[1],pd=c/d,a=lavg(k,fe);return {pr:pr,v:v,c:c,d:d,pd:pd,a:a,bad:c>=0&&lbad(k,pd,a)}}
 function lsel(k){var i=linfo(k);return !!i&&(LD.ck[k]===undefined?i.bad:LD.ck[k])}
 function lecHTML(){var h='<div class="sec">Lecturas de los contadores</div><div class="banner"><b>"Parcial" de la pantalla de consumos</b><div class="note" style="margin:4px 0 0">Escribe lo que pone la pantalla. La app resta la lectura anterior y te da el consumo por día.</div><div class="params"><div><label for="lfe">Fecha</label><input type="date" id="lfe"></div><div><label>Última lectura</label><div class="num" id="llast" style="padding:10px 0">—</div></div></div></div>';
   PT.forEach(function(n,k){h+='<div class="lrow" id="lr'+k+'"><span class="nm">'+n+'</span><input type="number" inputmode="decimal" step="0.1" data-lk="'+k+'" id="li'+k+'"><span class="res" id="ls'+k+'"></span><label class="chk" id="ll'+k+'" hidden><input type="checkbox" data-lc="'+k+'"> Avisar a mantenimiento</label></div>'});
@@ -314,11 +319,11 @@ function lecTable(){var s=lecSeries(),rows=[];for(var i=1;i<s.length;i++){var dd
   var el=document.getElementById('ltb');if(el)el.innerHTML=t}
 function lecUpd(k){var i=linfo(k),s=document.getElementById('ls'+k),r=document.getElementById('lr'+k),l=document.getElementById('ll'+k),pr=lprev(k,lfe());if(!s)return;
   if(!i){s.textContent=pr?'Anterior: '+fmt(pr[1])+' L ('+dmy(pr[0])+')':'Sin lectura anterior';r.className='lrow';l.hidden=true;return}
-  s.innerHTML='Consumo: <b>'+fmt(i.c)+' L</b> en '+i.d+(i.d>1?' días · <b>'+fmt(i.pd)+' L/día</b>':' día')+(i.c<0?' <span class="warn">· menor que la anterior, ¿reseteado?</span>':'')+(i.bad?' <span class="warn">· consumo elevado (media '+fmt(i.a)+')</span>':'');
+  s.innerHTML='Consumo: <b>'+fmt(i.c)+' L</b> en '+i.d+(i.d>1?' días · <b>'+fmt(i.pd)+' L/día</b>':' día')+(i.c<0?' <span class="warn">· menor que la anterior, ¿reseteado?</span>':'')+(i.bad?' <span class="warn">· consumo elevado ('+(LREF[k]?'normal '+LREF[k][0]+'–'+LREF[k][1]:'media '+fmt(i.a))+')</span>':'');
   r.className='lrow'+(i.bad?' bad':'');l.hidden=false;l.querySelector('input').checked=lsel(k)}
 function lecSelList(){var o=[];PT.forEach(function(n,k){if(lsel(k))o.push(k)});return o}
 function lecText(sel){var f=dmy(lfe());return {subject:'Consumo elevado Deogen · '+sel.map(function(k){return PT[k]}).join(', ')+' · '+f,
-  body:'Se ha detectado CONSUMO ELEVADO de Deogen el '+f+' en:\n'+sel.map(function(k){var i=linfo(k);return '- '+PT[k]+': '+fmt(i.c)+' L en '+i.d+(i.d>1?' días':' día')+' ('+fmt(i.pd)+' L/día; media '+fmt(i.a)+' L/día)'}).join('\n')+'\n\nSe adjunta el archivo con las lecturas. Por favor, revisar.'}}
+  body:'Se ha detectado CONSUMO ELEVADO de Deogen el '+f+' en:\n'+sel.map(function(k){var i=linfo(k);return '- '+PT[k]+': '+fmt(i.c)+' L en '+i.d+(i.d>1?' días':' día')+' ('+fmt(i.pd)+' L/día; '+(LREF[k]?'normal '+LREF[k][0]+'-'+LREF[k][1]:'media '+fmt(i.a))+' L/día)'}).join('\n')+'\n\nSe adjunta el archivo con las lecturas. Por favor, revisar.'}}
 function lecCsv(sel){var n=function(x){return String(Math.round(x*10)/10).replace('.',',')},rows=['Punto;Fecha anterior;Lectura anterior (L);Fecha actual;Lectura actual (L);Consumo (L);Días;L/día;Media L/día;Aviso'];
   sel.forEach(function(k){var i=linfo(k);rows.push([PT[k],dmy(i.pr[0]),n(i.pr[1]),dmy(lfe()),n(i.v),n(i.c),i.d,n(i.pd),n(i.a),i.bad?'CONSUMO ELEVADO':''].join(';'))});return rows.join('\n')}
 function lecAviso(){var sel=lecSelList(),box=document.getElementById('lav');if(!box)return;box.hidden=!sel.length;if(!sel.length)return;var t=lecText(sel);document.getElementById('ltxt').textContent='Asunto: '+t.subject+'\n\n'+t.body;var m=mails('mant');document.getElementById('mm').value=m[0]||''}
@@ -340,7 +345,7 @@ function lecPdf(){var J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast('No se pue
   var s=lecSeries(),rd=s.filter(function(x){return x[0]>=d0&&x[0]<=d1});if(!rd.length){toast('No hay lecturas en esas fechas');return}
   var iv=[];for(var i=1;i<s.length;i++){if(s[i][0]<d0||s[i][0]>d1)continue;var dd=ldays(s[i-1][0],s[i][0]);if(dd<1)continue;
     var pd=PT.map(function(n,k){var x=s[i-1][1][k],y=s[i][1][k];return typeof x==='number'&&typeof y==='number'&&y>=x?(y-x)/dd:null});
-    iv.push({b:s[i][0],dd:dd,pd:pd,bad:pd.map(function(v,k){return v!=null&&v>30&&v>1.5*lavg(k,s[i][0])})})}
+    iv.push({b:s[i][0],dd:dd,pd:pd,bad:pd.map(function(v,k){return v!=null&&lbad(k,v,lavg(k,s[i][0]))})})}
   var doc=new J({unit:'mm',format:'a4'}),X=10,y=16,W=[34,31,31,31,31,32],H=['Fecha','Baldes','Jumbos','Palets','Contenedores','Contador gral.'];
   function chk(){if(y>275){doc.addPage();y=16}}
   function head(){chk();doc.setFillColor(255,204,0);doc.rect(X,y-5,190,7,'F');doc.setTextColor(17,18,20);doc.setFont('helvetica','bold');doc.setFontSize(9);var x=X;H.forEach(function(t,j){if(j===0)doc.text(t,x+2,y);else doc.text(t,x+W[j]-2,y,{align:'right'});x+=W[j]});y+=7}
@@ -371,7 +376,7 @@ function viewCist(){
 /* ---------- PEDIDO ---------- */
 function itemHTML(c){var p=c.p,sin=c.mn===0?' · sin mínimo':'',d=isFinite(c.dias)?fmt(Math.max(0,c.dias))+' días':'—';
   return '<details class="item '+c.st+'" data-id="'+p.id+'"><summary><span class="name">'+esc(p.name)+'</span><span class="qty">'+(c.st==='now'?qtxt(c):d)+'</span>'+
-   '<span class="meta num">Hay '+fmt(c.stock)+' '+unit(p)+(uTxt(p,c.stock)?' = <b>'+uTxt(p,c.stock)+'</b>':'')+(c.mn>0&&uTxt(p,c.mn)?' · mín. '+uTxt(p,c.mn):'')+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+' · gasta '+fmt(c.rate)+'/día ('+c.src+')'+sin+(c.st==='now'?' · aguanta '+d:'')+'</span></summary>'+
+   '<span class="meta num">Hay '+fmt(c.stock)+' '+unit(p)+(detTxt(p)?' = <b>'+detTxt(p)+'</b>':'')+(c.mn>0&&uTxt(p,c.mn)?' · mín. '+uTxt(p,c.mn):'')+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+' · gasta '+fmt(c.rate)+'/día ('+c.src+')'+sin+(c.st==='now'?' · aguanta '+d:'')+'</span></summary>'+
    (c.st==='now'?'<div class="more" style="grid-template-columns:1fr auto;align-items:end"><div><label for="oq-'+p.id+'">Cantidad a pedir ('+p.ou.n+')</label><input type="number" id="oq-'+p.id+'" data-a="oq" min="0" step="1" value="'+c.q+'"></div><button class="btn" data-rm="'+p.id+'">Quitar del pedido</button></div>':'')+'<div class="more"><div><label for="mn-'+p.id+'">Mínimo ('+unit(p)+')</label><input type="number" id="mn-'+p.id+'" data-a="min" value="'+c.mn+'"></div>'+
    '<div><label for="rt-'+p.id+'">Consumo/día</label><input type="number" id="rt-'+p.id+'" data-a="rate" step="0.1" value="'+Math.round(c.rate*10)/10+'"></div>'+
    '<div><label for="pm-'+p.id+'">Pedido mín.</label><input type="number" id="pm-'+p.id+'" data-a="pmin" value="'+pminOf(p)+'"></div></div></details>'}
@@ -387,7 +392,7 @@ function viewOrder(){
   G.forEach(function(g){grp[g]=cs.filter(function(c){return gOf(c.p)===g});window._g[g]=grp[g].filter(function(c){return c.q>0})});
   var h='<div class="seg">'+G.map(function(g){var n=window._g[g].length+(g==='zotal'&&ZD>0?1:0);return '<button data-osup="'+g+'" aria-pressed="'+(g===osup)+'">'+GN[g]+'<small>'+(n?n+' por pedir':'nada')+'</small></button>'}).join('')+'</div>';
   var g=osup,list=grp[g].slice().sort(function(a,b){return (b.q>0)-(a.q>0)||a.dias-b.dias});
-  function row(c){var p=c.p,hay=uTxt(p,c.stock);return '<div class="prow'+(c.q>0?' on':'')+'"><span class="nm">'+esc(p.name)+(c.sug>0?'<span class="tag">pedir</span>':'')+'</span><div class="qs"><button data-oqd="'+p.id+'|-1" aria-label="Quitar">−</button><div><b>'+fmt(c.q)+'</b><small>'+esc(p.ou.n)+'</small></div><button data-oqd="'+p.id+'|1" aria-label="Añadir">+</button></div><span class="hay">Hay '+(hay?hay+' · ':'')+fmt(c.stock)+' '+unit(p)+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+'</span></div>'}
+  function row(c){var p=c.p,hay=detTxt(p);return '<div class="prow'+(c.q>0?' on':'')+'"><span class="nm">'+esc(p.name)+(c.sug>0?'<span class="tag">pedir</span>':'')+'</span><div class="qs"><button data-oqd="'+p.id+'|-1" aria-label="Quitar">−</button><div><b>'+fmt(c.q)+'</b><small>'+esc(p.ou.n)+'</small></div><button data-oqd="'+p.id+'|1" aria-label="Añadir">+</button></div><span class="hay">Hay '+(hay?hay+' · ':'')+fmt(c.stock)+' '+unit(p)+(c.pe?' (+'+fmt(c.pe)+' en camino)':'')+'</span></div>'}
   var on=list.filter(function(c){return c.q>0}),off=list.filter(function(c){return !(c.q>0)});
   if(g==='zotal')h+='<div class="prow'+(ZD>0?' on':'')+'"><span class="nm">Zotal Zero · depósito 200 L</span><div class="qs"><button data-zd="-1" aria-label="Quitar">−</button><div><b>'+ZD+'</b><small>depósitos</small></div><button data-zd="1" aria-label="Añadir">+</button></div><span class="hay">Hay '+(+D.zotal.f.bidon||0)+' depósito(s)</span></div>';
   h+=on.length?on.map(row).join(''):(g==='zotal'?'':'<div class="empty">Nada que pedir. Pulsa + en cualquier producto para añadirlo.</div>');
