@@ -265,9 +265,9 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-g';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-h';
   var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
-   '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div></div>'+
+   '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
   P.forEach(function(p,i){if(q&&p.name.toLowerCase().indexOf(q.toLowerCase())<0)return;
     h+='<button class="row" data-open="'+i+'"><span class="name">'+esc(p.name)+'</span>'+chip(p)+'<span class="tot num">'+fmt(tot(p))+' <small>'+unit(p)+'</small>'+(detTxt(p)?'<br><small>'+detTxt(p)+'</small>':'')+'</span></button>'});
@@ -451,6 +451,7 @@ function viewHist(){
     h+='<details class="item"><summary><span class="name">'+dmy(d)+'</span><span class="pill">'+Object.keys(cur).length+' productos</span></summary><div style="padding:0 12px 12px">';
     ALL.forEach(function(p){if(typeof cur[p.id]!=='number')return;var dif=typeof pv[p.id]==='number'?cur[p.id]-pv[p.id]:null;
       h+='<div class="hrow"><span>'+esc(p.name)+'</span><span class="num">'+fmt(cur[p.id])+' '+unit(p)+(dif!=null&&dif!==0?' <span class="pill">('+(dif>0?'+':'')+fmt(dif)+')</span>':'')+'</span></div>'});
+    if(mem.conteos[d])h+='<div class="nav" data-delbox="'+d+'" style="margin-top:12px"><button class="btn" data-delc="'+d+'">Borrar este conteo</button></div>';
     h+='</div></details>'});
   main.innerHTML=h+'</div>'}
 function exportCsv(){
@@ -466,6 +467,10 @@ function put(coll,id,data){
   mem[coll][id]=data;saveMem();cache=null;
   if(!db)return Promise.resolve();
   return db.doc(coll+'/'+id).set(data).catch(function(){dbState='error'})}
+function delDoc(coll,id){
+  delete mem[coll][id];saveMem();cache=null;
+  if(!db)return Promise.resolve();
+  return db.doc(coll+'/'+id).delete().catch(function(){dbState='error'})}
 function sub(coll){
   db.collection(coll).onSnapshot(function(snap){var ids={};snap.docs.forEach(function(d){ids[d.id]=1;mem[coll][d.id]=d.data()});
     Object.keys(mem[coll]).forEach(function(id){if(!ids[id]&&!(coll==='ajustes'&&0))db.doc(coll+'/'+id).set(mem[coll][id]).catch(function(){})});
@@ -484,6 +489,10 @@ main.addEventListener('click',function(e){
   if(t.dataset.open!=null){idx=+t.dataset.open;render();window.scrollTo(0,0);return}
   if(t.id==='start'){idx=P.findIndex(function(x){return !D[x.id].t});if(idx<0)idx=0;render();return}
   if(t.id==='save'){saveCount();return}
+  if(t.id==='resetrev'){P.forEach(function(x){D[x.id].t=0});saveDraft();toast('Listo: todo sin revisar');render();return}
+  if(t.dataset.delc){var bx=t.parentNode;bx.innerHTML='<div class="note" style="margin:0 0 8px"><b>¿Borrar el conteo del '+dmy(t.dataset.delc)+'?</b> No se puede deshacer.</div><button class="btn primary" data-delyes="'+t.dataset.delc+'">Sí, borrar</button> <button class="btn" data-delno="'+t.dataset.delc+'">No</button>';return}
+  if(t.dataset.delno){t.parentNode.innerHTML='<button class="btn" data-delc="'+t.dataset.delno+'">Borrar este conteo</button>';return}
+  if(t.dataset.delyes){var dd=t.dataset.delyes;delDoc('conteos',dd).then(function(){toast('Conteo borrado ('+dmy(dd)+')');render()});return}
   if(t.dataset.step){var inp=main.querySelector('input[data-f="'+t.dataset.k+'"]'),f=p.fields.filter(function(x){return x.k===t.dataset.k})[0];
     var st=f.step<1?f.step:(f.step>=10?f.step:1);inp.value=Math.max(0,(+inp.value||0)+(+t.dataset.step)*st);inp.dispatchEvent(new Event('input',{bubbles:true}));return}
   if(t.id==='addg'){D[p.id].g.push(p.grgList?800:GRG);D[p.id].t=1;saveDraft();(tab==='cist'?viewCist():viewWalk());return}
