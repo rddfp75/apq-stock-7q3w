@@ -265,9 +265,9 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-i';
-  var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
-   '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-j';
+  var n=revised(),sd=savedToday(),h='<div class="banner">'+(sd?'<div class="chip ok" style="margin-bottom:8px;display:inline-block">✔ Conteo de hoy ya guardado ('+dmy(today())+')</div><br>':'')+'<b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
+   '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn'+(sd?'':' primary')+'" id="save">'+(sd?'Guardar de nuevo':'Guardar conteo')+'</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
   P.forEach(function(p,i){if(q&&p.name.toLowerCase().indexOf(q.toLowerCase())<0)return;
     h+='<button class="row" data-open="'+i+'"><span class="name">'+esc(p.name)+'</span>'+chip(p)+'<span class="tot num">'+fmt(tot(p))+' <small>'+unit(p)+'</small>'+(detTxt(p)?'<br><small>'+detTxt(p)+'</small>':'')+'</span></button>'});
@@ -291,6 +291,7 @@ function viewWalk(){
   main.innerHTML=h;refreshWalk()}
 function refreshWalk(){var p=tab==='cist'?BY.deogen:P[idx],t=document.getElementById('tot');if(!t)return;t.textContent=fmt(tot(p))+' '+unit(p);
   var pi=document.getElementById('pctin');if(pi&&document.activeElement!==pi)pi.value=Math.round((+D[p.id].f.cist||0)/p.cap*1000)/10;var cs0=document.getElementById('csum');if(cs0)cs0.innerHTML=cistSum();var pc=document.getElementById('pct');if(pc)pc.textContent='Tanque al '+fmt(tot(p)/p.cap*100)+' % de '+fmt(p.cap)+' L'}
+function savedToday(){var c=mem.conteos[today()];return !!(c&&c.litros&&Object.keys(c.litros).length>5)}
 function saveCount(){
   var f=today(),lit={},det={};ALL.forEach(function(p){lit[p.id]=tot(p);det[p.id]={f:D[p.id].f,g:D[p.id].g}});
   put('conteos',f,{fecha:f,litros:lit,detalle:det}).then(function(){P.forEach(function(p){D[p.id].t=0});saveDraft();toast('Conteo guardado ('+dmy(f)+')');render()})}
@@ -491,7 +492,9 @@ main.addEventListener('click',function(e){
   var t=e.target.closest('button');if(!t)return;var p=tab==='cist'?BY.deogen:(idx>=0?P[idx]:null);
   if(t.dataset.open!=null){idx=+t.dataset.open;render();window.scrollTo(0,0);return}
   if(t.id==='start'){idx=P.findIndex(function(x){return !D[x.id].t});if(idx<0)idx=0;render();return}
-  if(t.id==='save'){saveCount();return}
+  if(t.id==='save'){if(savedToday()){t.parentNode.innerHTML='<div class="note" style="margin:0 0 8px"><b>Ya hay un conteo guardado hoy.</b> Si guardas otra vez, se sustituye por lo que tienes ahora.</div><button class="btn primary" data-svyes="1">Sí, sustituir</button> <button class="btn" data-svno="1">No</button>';return}saveCount();return}
+  if(t.dataset.svyes){saveCount();return}
+  if(t.dataset.svno){render();return}
   if(t.id==='resetrev'){P.forEach(function(x){D[x.id].t=0});saveDraft();toast('Listo: todo sin revisar');render();return}
   if(t.dataset.delc){var bx=t.parentNode;bx.innerHTML='<div class="note" style="margin:0 0 8px"><b>¿Borrar el conteo del '+dmy(t.dataset.delc)+'?</b> No se puede deshacer.</div><button class="btn primary" data-delyes="'+t.dataset.delc+'">Sí, borrar</button> <button class="btn" data-delno="'+t.dataset.delc+'">No</button>';return}
   if(t.dataset.delno){t.parentNode.innerHTML='<button class="btn" data-delc="'+t.dataset.delno+'">Borrar este conteo</button>';return}
