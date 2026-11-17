@@ -265,7 +265,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-n';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-o';
   var n=revised(),sd=savedToday(),h='<div class="banner">'+(sd?'<div class="chip ok" style="margin-bottom:8px;display:inline-block">✔ Conteo de hoy ya guardado ('+dmy(today())+')</div><br>':'')+'<b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn'+(sd?'':' primary')+'" id="save">'+(sd?'Guardar de nuevo':'Guardar conteo')+'</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
@@ -545,7 +545,9 @@ main.addEventListener('click',function(e){
   if(t.dataset.oqd){var pq=t.dataset.oqd.split('|'),pp=BY[pq[0]],cc=calc(pp),dd=+pq[1],nv=cc.q+dd;if(cc.q===0&&dd>0)nv=Math.max(1,pminOf(pp));OV[pp.id]=Math.max(0,nv);sv('apq2-ov',OV);render();return}
   if(t.dataset.zd){ZD=Math.max(0,ZD+(+t.dataset.zd));sv('apq2-zd',ZD);render();return}
   if(t.dataset.ol){olSet(calc(BY.deogen).q+(+t.dataset.ol));return}
-  if(t.id==='lsave'){lecSave();return}
+  if(t.id==='lsave'){var sl=mem.lecturas[lfe()];if(sl&&sl.v){t.parentNode.innerHTML='<div class="note" style="margin:0 0 8px"><b>Ya hay lecturas guardadas el '+dmy(lfe())+'.</b> Si guardas otra vez, se sustituyen.</div><button class="btn primary" id="lsyes">Sí, sustituir</button> <button class="btn" id="lsno">No</button>';return}lecSave();return}
+  if(t.id==='lsyes'){lecSave();return}
+  if(t.id==='lsno'){render();return}
   if(t.id==='lcsv'){lecCsvAll();return}
   if(t.id==='lpdf'){lecPdf();return}
   if(t.id==='opdf'){ordPdf();return}
