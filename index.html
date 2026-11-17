@@ -265,7 +265,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-h';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-i';
   var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
@@ -407,8 +407,11 @@ function viewOrder(){
 /* ---------- CONSUMO ---------- */
 var MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 function entr(id,d0,d1){var t=0;Object.keys(mem.pedidos).forEach(function(k){var o=mem.pedidos[k];if(o&&o.recibido&&o.recFecha&&o.recFecha>d0&&o.recFecha<=d1&&o.items&&o.items[id]){var it=o.items[id];t+=+(it.Lr!=null?it.Lr:it.L)||0}if(id==='zotal'&&o&&o.recibido&&o.recFecha&&o.recFecha>d0&&o.recFecha<=d1&&o.items&&o.items.zotaldep){var z=o.items.zotaldep;t+=+(z.Lr!=null?z.Lr:z.L)||0}});return t}
+function entList(id){var a=[];Object.keys(mem.pedidos).forEach(function(k){var o=mem.pedidos[k];if(!o||!o.recibido||!o.recFecha||!o.items)return;var it=o.items[id];if(it)a.push({r:o.recFecha,L:+(it.Lr!=null?it.Lr:it.L)||0});if(id==='zotal'&&o.items.zotaldep){var z=o.items.zotaldep;a.push({r:o.recFecha,L:+(z.Lr!=null?z.Lr:z.L)||0})}});return a}
 function consIv(id){var s=series(),pts=[],iv=[];s.ds.forEach(function(d){var v=s.dates[d][id];if(typeof v==='number')pts.push([d,v])});
-  for(var i=1;i<pts.length;i++){var d0=pts[i-1][0],d1=pts[i][0],dd=Math.round((new Date(d1)-new Date(d0))/864e5),en=entr(id,d0,d1),c=pts[i-1][1]+en-pts[i][1];iv.push({d0:d0,d1:d1,dd:dd,en:en,c:c,ok:dd>0&&dd<=45&&c>=0})}
+  var ens=[];for(var j=0;j<pts.length;j++)ens.push(0);
+  entList(id).forEach(function(e){var best=0;for(var q=1;q<pts.length;q++){if(pts[q-1][0]<=e.r&&e.r<=pts[q][0]){if(!best||pts[q][1]-pts[q-1][1]>pts[best][1]-pts[best-1][1])best=q}}if(best)ens[best]+=e.L});
+  for(var i=1;i<pts.length;i++){var d0=pts[i-1][0],d1=pts[i][0],dd=Math.round((new Date(d1)-new Date(d0))/864e5),en=ens[i],c=pts[i-1][1]+en-pts[i][1];iv.push({d0:d0,d1:d1,dd:dd,en:en,c:c,ok:dd>0&&dd<=45&&c>=0})}
   return iv}
 function sumc(a){return a.reduce(function(t,x){return t+x.c},0)}
 function sumd(a){return a.reduce(function(t,x){return t+x.dd},0)}
