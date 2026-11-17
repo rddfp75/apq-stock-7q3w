@@ -265,7 +265,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-e';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-g';
   var n=revised(),h='<div class="banner"><b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn primary" id="save">Guardar conteo</button></div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
@@ -412,12 +412,13 @@ function consIv(id){var s=series(),pts=[],iv=[];s.ds.forEach(function(d){var v=s
   return iv}
 function sumc(a){return a.reduce(function(t,x){return t+x.c},0)}
 function sumd(a){return a.reduce(function(t,x){return t+x.dd},0)}
+function wkOf(ok){var c=0,d=0;for(var i=ok.length-1;i>=0&&d<7;i--){c+=ok[i].c;d+=ok[i].dd}return d?c/d*7:null}
 function consOf(p,Y,M){
   var iv=consIv(p.id),ok=iv.filter(function(x){return x.ok}),yi=iv.filter(function(x){return +x.d1.slice(0,4)===Y}),yok=yi.filter(function(x){return x.ok}),
    yTot=sumc(yok),yDays=sumd(yok),avg=yDays?yTot/yDays:0,skD=sumd(yi.filter(function(x){return !x.ok})),
    mok=yok.filter(function(x){return +x.d1.slice(5,7)===M}),last=ok.length?ok[ok.length-1]:null,r4=ok.filter(function(x){return last&&(new Date(last.d1)-new Date(x.d1))/864e5<28}),rec=r4.length?sumc(r4)/sumd(r4):0,
    months={};yok.forEach(function(x){var m=+x.d1.slice(5,7);months[m]=(months[m]||0)+x.c});
-  return {iv:iv,yTot:yTot,avg:avg,est:yTot+skD*avg,skD:skD,mTot:sumc(mok),wk:last&&last.dd?last.c/last.dd*7:null,rec:rec,months:months,has:yok.length>0}}
+  return {iv:iv,yTot:yTot,avg:avg,est:yTot+skD*avg,skD:skD,mTot:sumc(mok),wk:wkOf(ok),rec:rec,months:months,has:yok.length>0}}
 function viewCons(){
   title.textContent='Consumo';var s=series(),ld0=s.ds[s.ds.length-1]||today(),Y=+ld0.slice(0,4),M=+ld0.slice(5,7);
   subtitle.textContent='Año '+Y+' · hasta el conteo del '+dmy(ld0);
