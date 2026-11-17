@@ -265,7 +265,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-m';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-n';
   var n=revised(),sd=savedToday(),h='<div class="banner">'+(sd?'<div class="chip ok" style="margin-bottom:8px;display:inline-block">✔ Conteo de hoy ya guardado ('+dmy(today())+')</div><br>':'')+'<b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn'+(sd?'':' primary')+'" id="save">'+(sd?'Guardar de nuevo':'Guardar conteo')+'</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
@@ -291,6 +291,7 @@ function viewWalk(){
   main.innerHTML=h;refreshWalk()}
 function refreshWalk(){var p=tab==='cist'?BY.deogen:P[idx],t=document.getElementById('tot');if(!t)return;t.textContent=fmt(tot(p))+' '+unit(p);
   var pi=document.getElementById('pctin');if(pi&&document.activeElement!==pi)pi.value=Math.round((+D[p.id].f.cist||0)/p.cap*1000)/10;var cs0=document.getElementById('csum');if(cs0)cs0.innerHTML=cistSum();var pc=document.getElementById('pct');if(pc)pc.textContent='Tanque al '+fmt(tot(p)/p.cap*100)+' % de '+fmt(p.cap)+' L'}
+function tankSaved(){var c=mem.conteos[today()];return (c&&c.litros&&typeof c.litros.deogen==='number')?c.litros.deogen:null}
 function savedToday(){var c=mem.conteos[today()];return !!(c&&c.litros&&Object.keys(c.litros).length>5)}
 function saveCount(){
   var f=today(),lit={},det={};ALL.forEach(function(p){lit[p.id]=tot(p);det[p.id]={f:D[p.id].f,g:D[p.id].g}});
@@ -385,7 +386,7 @@ function olHTML(){var c=calc(BY.deogen);return '<div class="field"><div class="l
 function olSet(v){OV.deogen=Math.max(0,v);sv('apq2-ov',OV);var i=document.getElementById('olit');if(i&&document.activeElement!==i)i.value=OV.deogen;var cs=document.getElementById('csum');if(cs)cs.innerHTML=cistSum()}
 function viewCist(){
   var p=BY.deogen,s=D.deogen;title.textContent='Tanque';subtitle.textContent='Deogen · capacidad '+fmt(p.cap)+' L';
-  var h='<div class="banner" id="csum">'+cistSum()+'</div><div class="card"><h2>Nivel del tanque</h2><div class="note" style="margin:0">'+prevTxt(p)+'</div>'+fieldHTML(p,p.fields[0]);
+  var ts=tankSaved(),h='<div class="banner" id="csum">'+cistSum()+'</div>'+(ts!=null?'<div class="banner"><div class="chip ok" style="display:inline-block">✔ Nivel de hoy ya guardado: '+fmt(ts)+' L ('+dmy(today())+')</div><div id="tdbox" style="margin-top:8px"><button class="btn" id="tdel">Borrar nivel de hoy</button></div></div>':'')+'<div class="card"><h2>Nivel del tanque</h2><div class="note" style="margin:0">'+prevTxt(p)+'</div>'+fieldHTML(p,p.fields[0]);
   h+='<div class="field"><div class="lbl"><b>O pon el nivel (%)</b><span>1 % = '+fmt(p.cap/100)+' L</span></div><div class="stepper"><input type="number" inputmode="decimal" min="0" max="100" step="0.5" id="pctin" value="'+(Math.round((+s.f.cist||0)/p.cap*1000)/10)+'" placeholder="%"></div></div>';
   h+='<div class="total"><span>Tanque</span><b class="num" id="tot"></b></div><div class="note num" id="pct"></div></div>';
   h+='<div class="nav"><button class="btn primary" id="csave">Guardar nivel del tanque de hoy</button></div>'+olHTML()+'<div class="nav"><button class="btn" id="ccopy">Copiar pedido</button><button class="btn" id="cmark">Marcar como pedido</button></div>';h+=lecHTML();h+=mailBox('cist');
@@ -531,7 +532,11 @@ main.addEventListener('click',function(e){
   if(t.id==='back'){D[p.id].t=1;saveDraft();idx=-1;render();return}
   if(t.dataset.rm){OV[t.dataset.rm]=0;sv('apq2-ov',OV);render();return}
   if(t.id==='addbtn'){var sl=document.getElementById('addsel');if(sl&&sl.value){var ap=BY[sl.value];OV[ap.id]=Math.max(1,pminOf(ap));sv('apq2-ov',OV);render()}return}
-  if(t.id==='csave'){var f0=today(),ex=mem.conteos[f0]?JSON.parse(JSON.stringify(mem.conteos[f0])):{fecha:f0,litros:{},detalle:{}};ex.litros.deogen=tot(BY.deogen);ex.detalle=ex.detalle||{};ex.detalle.deogen={f:D.deogen.f,g:D.deogen.g};put('conteos',f0,ex).then(function(){toast('Nivel guardado ('+dmy(f0)+')');render()});return}
+  if(t.id==='tdel'){t.parentNode.innerHTML='<div class="note" style="margin:0 0 8px"><b>¿Borrar el nivel del tanque de hoy?</b> No se puede deshacer.</div><button class="btn primary" id="tdelyes">Sí, borrar</button> <button class="btn" id="tdelno">No</button>';return}
+  if(t.id==='tdelno'){render();return}
+  if(t.id==='tdelyes'){var f1=today(),c1=mem.conteos[f1];if(!c1){render();return}c1=JSON.parse(JSON.stringify(c1));delete c1.litros.deogen;if(c1.detalle)delete c1.detalle.deogen;var p1=Object.keys(c1.litros).length?put('conteos',f1,c1):delDoc('conteos',f1);p1.then(function(){toast('Nivel del tanque borrado');render()});return}
+  if(t.id==='csave'&&tankSaved()!=null){t.parentNode.innerHTML='<div class="note" style="margin:0 0 8px"><b>Ya hay un nivel guardado hoy.</b> Si guardas otra vez, se sustituye.</div><button class="btn primary" id="tsvyes">Sí, sustituir</button> <button class="btn" id="tdelno">No</button>';return}
+  if(t.id==='csave'||t.id==='tsvyes'){var f0=today(),ex=mem.conteos[f0]?JSON.parse(JSON.stringify(mem.conteos[f0])):{fecha:f0,litros:{},detalle:{}};ex.litros.deogen=tot(BY.deogen);ex.detalle=ex.detalle||{};ex.detalle.deogen={f:D.deogen.f,g:D.deogen.g};put('conteos',f0,ex).then(function(){toast('Nivel guardado ('+dmy(f0)+')');render()});return}
   if(t.id==='ccopy'){var c0=calc(BY.deogen);if(!c0.q){toast('Todavía no hace falta pedir');return}var tx='PEDIDO APQ · Deogen (cisterna) '+dmy(today())+'\n- Deogen: '+fmt(c0.q)+' L';
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tx).then(function(){t.textContent='Copiado'},function(){toast(tx)})}else toast(tx);return}
   if(t.id==='cmark'){var c1=calc(BY.deogen);if(!c1.q){toast('Todavía no hace falta pedir');return}
