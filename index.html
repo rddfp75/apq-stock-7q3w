@@ -265,7 +265,7 @@ function chip(p){return D[p.id].t?'<span class="chip ok">Revisado</span>':'<span
 /* ---------- CONTEO ---------- */
 function viewList(){
   title.textContent='Conteo';var last=series().ds.filter(function(d){return !!mem.conteos[d]||true}).slice(-1)[0];
-  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-k';
+  subtitle.textContent='Último guardado: '+(last?dmy(last):'ninguno')+' · '+dbTxt()+' · v6-nov-l';
   var n=revised(),sd=savedToday(),h='<div class="banner">'+(sd?'<div class="chip ok" style="margin-bottom:8px;display:inline-block">✔ Conteo de hoy ya guardado ('+dmy(today())+')</div><br>':'')+'<b>Conteo de hoy: '+n+' de '+P.length+' revisados</b><div class="bar"><i style="width:'+(n/P.length*100)+'%"></i></div>'+
    '<div class="nav"><button class="btn" id="start">'+(n?'Seguir contando':'Empezar a contar')+'</button><button class="btn'+(sd?'':' primary')+'" id="save">'+(sd?'Guardar de nuevo':'Guardar conteo')+'</button></div><div class="nav" style="margin-top:8px"><button class="btn" id="resetrev">Empezar conteo nuevo</button></div><div class="note" style="margin:6px 0 0">Quita los "Revisado" para volver a contar. No borra las cantidades ni guarda nada.</div></div>'+
    '<input type="search" id="q" placeholder="Buscar producto" value="'+esc(q)+'"><div class="list">';
@@ -341,6 +341,19 @@ function lecSave(){var fe=lfe(),old=(mem.lecturas[fe]&&mem.lecturas[fe].v)||[nul
   if(!any){toast('Escribe alguna lectura');return}
   put('lecturas',fe,{fecha:fe,v:v}).then(function(){LD={fe:'',v:{},ck:{}};lsave();toast('Lecturas guardadas ('+dmy(fe)+')');render()})}
 function lecCsvAll(){var n=function(x){return typeof x==='number'?String(x).replace('.',','):''};var rows=['Fecha;'+PT.join(';')];lecSeries().forEach(function(x){rows.push(dmy(x[0])+';'+PT.map(function(p,k){return n(x[1][k])}).join(';'))});dlFile('lecturas-tanque-deogen.csv','﻿'+rows.join('\n'))}
+function ordPdf(){var J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast('No se puede crear el PDF ahora (falta conexión)');return}
+  var d0=document.getElementById('od0').value,d1=document.getElementById('od1').value;if(!d0||!d1||d0>d1){toast('Revisa las fechas');return}
+  var ks=Object.keys(mem.pedidos).filter(function(k){var o=mem.pedidos[k];if(!o||!o.items)return false;var f=o.fecha||k.slice(0,10);return f>=d0&&f<=d1}).sort();
+  if(!ks.length){toast('No hay pedidos en esas fechas');return}
+  var doc=new J({unit:'mm',format:'a4'}),X=10,y=16,W=[24,40,58,38,30],H=['Fecha','Proveedor','Producto','Cantidad','Litros'];
+  function chk(){if(y>275){doc.addPage();y=16;head()}}
+  function head(){doc.setFillColor(255,204,0);doc.rect(X,y-5,190,7,'F');doc.setTextColor(17,18,20);doc.setFont('helvetica','bold');doc.setFontSize(9);var x=X;H.forEach(function(t,j){if(j>=3)doc.text(t,x+W[j]-2,y,{align:'right'});else doc.text(t,x+2,y);x+=W[j]});y+=7}
+  function row(c,bold){chk();doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(9);doc.setTextColor(17,18,20);var x=X;c.forEach(function(t,j){if(j>=3)doc.text(String(t),x+W[j]-2,y,{align:'right'});else doc.text(String(t),x+2,y);x+=W[j]});doc.setDrawColor(200);doc.line(X,y+2,X+190,y+2);y+=7}
+  doc.setTextColor(17,18,20);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Registro de pedidos - APQ',X,y);y+=7;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text('Del '+dmy(d0)+' al '+dmy(d1)+'. Generado el '+dmy(today())+'.',X,y);y+=10;head();
+  ks.forEach(function(k){var o=mem.pedidos[k],f=o.fecha||k.slice(0,10);Object.keys(o.items).forEach(function(i){var it=o.items[i],nm=BY[i]?BY[i].name:(i==='zotaldep'?'Zotal deposito 200 L':i);row([dmy(f),o.prov||'',nm,fmt(+it.q||0)+' '+(it.n||''),it.L?fmt(+it.L)+' L':'-'])})});
+  y+=4;chk();doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(17,18,20);doc.text(ks.length+(ks.length===1?' pedido':' pedidos'),X,y);
+  dlFile('pedidos-apq-'+d0+'_'+d1+'.pdf',doc.output('blob'))}
 function lecPdf(){var J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast('No se puede crear el PDF ahora (falta conexión)');return}
   var d0=document.getElementById('pd0').value,d1=document.getElementById('pd1').value;if(!d0||!d1||d0>d1){toast('Revisa las fechas');return}
   var s=lecSeries(),rd=s.filter(function(x){return x[0]>=d0&&x[0]<=d1});if(!rd.length){toast('No hay lecturas en esas fechas');return}
@@ -402,6 +415,7 @@ function viewOrder(){
   h+=mailBox(g);
   var allP=Object.keys(mem.pedidos).filter(function(k){return mem.pedidos[k]&&mem.pedidos[k].items}).sort().reverse();
   h+='<div class="sec">Registro de pedidos <span class="cnt">'+allP.length+'</span></div>';
+  h+='<div class="banner"><b>PDF de pedidos</b><div class="params"><div><label for="od0">Desde</label><input type="date" id="od0" value="'+today().slice(0,8)+'01"></div><div><label for="od1">Hasta</label><input type="date" id="od1" value="'+today()+'"></div></div><div class="nav" style="margin-top:8px"><button class="btn" data-oq="mes">Este mes</button><button class="btn" data-oq="mesp">Mes pasado</button><button class="btn" data-oq="anio">Este año</button></div><div class="nav" style="margin-bottom:0"><button class="btn primary" id="opdf">Descargar PDF</button></div></div>';
   if(!allP.length)h+='<div class="note">Aún no hay pedidos anotados. Cuando pulses "Marcar como pedido" quedará aquí.</div>';
   allP.forEach(function(k){var o=mem.pedidos[k],ks=Object.keys(o.items);h+='<details class="item"><summary><span class="name">'+dmy(o.fecha||k.slice(0,10))+'</span><span class="pill">'+(o.prov?esc(o.prov)+' · ':'')+ks.length+(ks.length===1?' producto':' productos')+'</span></summary><div style="padding:0 12px 12px">'+
     ks.map(function(i){var it=o.items[i];return '<div class="hrow"><span>'+esc(BY[i]?BY[i].name:(i==='zotaldep'?'Zotal depósito 200 L':i))+'</span><span class="num">'+fmt(+it.q||0)+' '+esc(it.n||'')+(it.n&&it.n!=='L'&&it.L?' <span class="pill">('+fmt(it.L)+' L)</span>':'')+'</span></div>'}).join('')+
@@ -526,6 +540,12 @@ main.addEventListener('click',function(e){
   if(t.id==='lsave'){lecSave();return}
   if(t.id==='lcsv'){lecCsvAll();return}
   if(t.id==='lpdf'){lecPdf();return}
+  if(t.id==='opdf'){ordPdf();return}
+  if(t.dataset.oq){var a0=document.getElementById('od0'),a1=document.getElementById('od1'),tt=today(),yy=+tt.slice(0,4),mm=+tt.slice(5,7),pz=function(n){return String(n).padStart(2,'0')};
+    if(t.dataset.oq==='mes'){a0.value=tt.slice(0,8)+'01';a1.value=tt}
+    else if(t.dataset.oq==='mesp'){var py=mm===1?yy-1:yy,pm=mm===1?12:mm-1,ld=new Date(py,pm,0).getDate();a0.value=py+'-'+pz(pm)+'-01';a1.value=py+'-'+pz(pm)+'-'+pz(ld)}
+    else{a0.value=yy+'-01-01';a1.value=tt}
+    return}
   if(t.id==='lsend'){lecSend(t);return}
   if(t.id==='lcopy'){var sl=lecSelList();if(sl.length){var tt=lecText(sl),full='Asunto: '+tt.subject+'\n\n'+tt.body;if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(full).then(function(){t.textContent='Copiado'},function(){toast('Mantén pulsado el texto para copiar')})}return}
   if(t.dataset.cper){cper=t.dataset.cper;render();return}
